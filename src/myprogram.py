@@ -2,19 +2,38 @@
 import os
 import string
 import random
+import pickle
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
+from datasets import load_dataset
+from collections import defaultdict, Counter
 
 class MyModel:
     """
     This is a starter model to get you started. Feel free to modify this file.
     """
 
+    def __init__(self):
+        self.n = 5
+        self.model = defaultdict(Counter)
+
     @classmethod
     def load_training_data(cls):
-        # your code here
-        # this particular model doesn't train
-        return []
+        print("Loading C4 dataset")
+        
+        dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
+        max_samples = 1000
+
+        training_data = []
+        sample_count = 0
+        for sample in dataset:
+            if sample_count >= max_samples:
+                break
+            if 'text' in sample:
+                training_data.append(sample['text'])
+                sample_count += 1
+        
+        print(f"Loaded {sample_count} samples")
+        return training_data
 
     @classmethod
     def load_test_data(cls, fname):
@@ -33,32 +52,54 @@ class MyModel:
                 f.write('{}\n'.format(p))
 
     def run_train(self, data, work_dir):
-        # your code here
-        pass
+        combined_text = ' '.join(data)
+        n = self.n
+
+        for i in range(len(combined_text) - n):
+            context = combined_text[i:i+n]
+            char = combined_text[i+n]
+            self.model[context][char] += 1
+        
+        print(f"Trained {n}-gram model")
+
+    def predict_next_chars(self, inp):
+        context = inp[-self.n:]
+        
+        if context in self.model and self.model[context]:
+            char_counts = self.model[context]
+            top_3 = char_counts.most_common(3)
+            pred = ''.join([char for char, count in top_3])
+            while len(pred) < 3:
+                pred += random.choice(string.ascii_lowercase)
+        else:
+            pred = ''.join(random.choices(string.ascii_lowercase, k=3))
+        
+        return pred
 
     def run_pred(self, data):
-        # your code here
         preds = []
-        all_chars = string.ascii_letters
         for inp in data:
-            # this model just predicts a random character each time
-            top_guesses = [random.choice(all_chars) for _ in range(3)]
-            preds.append(''.join(top_guesses))
+            pred = self.predict_next_chars(inp)
+            preds.append(pred)
         return preds
 
     def save(self, work_dir):
-        # your code here
-        # this particular model has nothing to save, but for demonstration purposes we will save a blank file
-        with open(os.path.join(work_dir, 'model.checkpoint'), 'wt') as f:
-            f.write('dummy save')
+        checkpoint = {
+            'n': self.n,
+            'model': dict(self.model)
+        }
+        with open(os.path.join(work_dir, 'model.checkpoint'), 'wb') as f:
+            pickle.dump(checkpoint, f)
 
     @classmethod
     def load(cls, work_dir):
-        # your code here
-        # this particular model has nothing to load, but for demonstration purposes we will load a blank file
-        with open(os.path.join(work_dir, 'model.checkpoint')) as f:
-            dummy_save = f.read()
-        return MyModel()
+        with open(os.path.join(work_dir, 'model.checkpoint'), 'rb') as f:
+            checkpoint = pickle.load(f)
+        
+        model = MyModel()
+        model.n = checkpoint['n']
+        model.model = defaultdict(Counter, {ctx: Counter(chars) for ctx, chars in checkpoint['model'].items()})
+        return model
 
 
 if __name__ == '__main__':
