@@ -56,25 +56,28 @@ class MyModel:
         n = self.n
 
         for i in range(len(combined_text) - n):
-            context = combined_text[i:i+n]
-            char = combined_text[i+n]
-            self.model[context][char] += 1
+            for ctx_len in range(1, n + 1):
+                if i + ctx_len < len(combined_text):
+                    context = combined_text[i:i+ctx_len]
+                    char = combined_text[i+ctx_len]
+                    self.model[context][char] += 1
         
-        print(f"Trained {n}-gram model")
+        print(f"Trained n-gram models")
 
     def predict_next_chars(self, inp):
-        context = inp[-self.n:]
-        
-        if context in self.model and self.model[context]:
-            char_counts = self.model[context]
-            top_3 = char_counts.most_common(3)
-            pred = ''.join([char for char, count in top_3])
-            while len(pred) < 3:
-                pred += random.choice(string.ascii_lowercase)
-        else:
-            pred = ''.join(random.choices(string.ascii_lowercase, k=3))
-        
-        return pred
+        for ctx_len in range(min(self.n, len(inp)), 0, -1):
+            context = inp[-ctx_len:]
+            
+            if context in self.model and self.model[context]:
+                char_counts = self.model[context]
+                top_3 = char_counts.most_common(3)
+                pred = ''.join([char for char, count in top_3])
+                while len(pred) < 3:
+                    pred += random.choice(string.ascii_lowercase)
+                
+                return pred
+
+        return ''.join(random.choices(string.ascii_lowercase, k=3))
 
     def run_pred(self, data):
         preds = []
