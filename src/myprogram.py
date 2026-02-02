@@ -15,6 +15,7 @@ class MyModel:
     def __init__(self):
         self.n = 5
         self.model = defaultdict(Counter)
+        self.char_freq = Counter()
 
     @classmethod
     def load_training_data(cls):
@@ -55,6 +56,8 @@ class MyModel:
         combined_text = ' '.join(data)
         n = self.n
 
+        self.char_freq = Counter(combined_text)
+
         for i in range(len(combined_text) - n):
             for ctx_len in range(1, n + 1):
                 if i + ctx_len < len(combined_text):
@@ -72,12 +75,18 @@ class MyModel:
                 char_counts = self.model[context]
                 top_3 = char_counts.most_common(3)
                 pred = ''.join([char for char, count in top_3])
-                while len(pred) < 3:
-                    pred += random.choice(string.ascii_lowercase)
-                
+
+                # If less than 3 predictions, add most frequent chars
+                if len(pred) < 3:
+                    top_freq = self.char_freq.most_common(5)
+                    for char, _ in top_freq:
+                        if char not in pred and len(pred) < 3:
+                            pred += char
+
                 return pred
 
-        return ''.join(random.choices(string.ascii_lowercase, k=3))
+        top_freq = self.char_freq.most_common(3)
+        return ''.join([char for char, _ in top_freq])
 
     def run_pred(self, data):
         preds = []
@@ -89,7 +98,8 @@ class MyModel:
     def save(self, work_dir):
         checkpoint = {
             'n': self.n,
-            'model': dict(self.model)
+            'model': dict(self.model),
+            'char_freq': dict(self.char_freq)
         }
         with open(os.path.join(work_dir, 'model.checkpoint'), 'wb') as f:
             pickle.dump(checkpoint, f)
@@ -102,6 +112,7 @@ class MyModel:
         model = MyModel()
         model.n = checkpoint['n']
         model.model = defaultdict(Counter, {ctx: Counter(chars) for ctx, chars in checkpoint['model'].items()})
+        model.char_freq = Counter(checkpoint.get('char_freq', {}))
         return model
 
 
