@@ -24,16 +24,33 @@ class MyModel:
         dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
         max_samples = 1000
 
-        training_data = []
-        sample_count = 0
-        for sample in dataset:
-            if sample_count >= max_samples:
-                break
-            if 'text' in sample:
-                training_data.append(sample['text'])
-                sample_count += 1
+        languages = {
+            'en': 2000,
+            # 'es': 2000,
+            # 'zh': 2000,
+            # 'ru': 2000,
+            # 'ar': 2000,
+            # 'ja': 2000,
+            # 'hi': 2000,
+            'ko': 2000,
+            # 'vi': 2000,
+        }
         
-        print(f"Loaded {sample_count} samples")
+        training_data = []
+        
+        for lang_code, max_samples in languages.items():
+            print(f"Loading {lang_code} data")
+            dataset = load_dataset('allenai/c4', lang_code, split='train', streaming=True)
+            
+            sample_count = 0
+            for sample in dataset:
+                if sample_count >= max_samples:
+                    break
+                if 'text' in sample:
+                    training_data.append(sample['text'])
+                    sample_count += 1
+            print(f"Loaded {sample_count} samples.")
+
         return training_data
 
     @classmethod
