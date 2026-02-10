@@ -20,20 +20,21 @@ class MyModel:
     @classmethod
     def load_training_data(cls):
         print("Loading C4 dataset")
-        
+
         dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
-        max_samples = 1000
 
         languages = {
             'en': 2000,
-            # 'es': 2000,
-            # 'zh': 2000,
-            # 'ru': 2000,
-            # 'ar': 2000,
-            # 'ja': 2000,
-            # 'hi': 2000,
+            'es': 2000,
+            'zh': 2000,
+            'hi': 2000,
+            'pt': 2000,
+            'bn': 2000,
+            'ru': 2000,
+            'ja': 2000,
+            'ar': 2000,
             'ko': 2000,
-            # 'vi': 2000,
+            'vi': 2000,
         }
         
         training_data = []
@@ -90,15 +91,14 @@ class MyModel:
             
             if context in self.model and self.model[context]:
                 char_counts = self.model[context]
-                top_3 = char_counts.most_common(3)
-                pred = ''.join([char for char, count in top_3])
+                top_3 = [char for char, count in char_counts.most_common() if char != '\n'][:3]
+                pred = ''.join(top_3)
 
                 # If less than 3 predictions, add most frequent chars
                 if len(pred) < 3:
-                    top_freq = self.char_freq.most_common(5)
-                    for char, _ in top_freq:
-                        if char not in pred and len(pred) < 3:
-                            pred += char
+                    additional_chars = [char for char, _ in self.char_freq.most_common() 
+                                       if char not in pred and char != '\n']
+                    pred += ''.join(additional_chars[:3 - len(pred)])
 
                 return pred
 
