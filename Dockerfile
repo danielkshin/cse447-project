@@ -3,5 +3,5 @@ RUN mkdir /job
 WORKDIR /job
 VOLUME ["/job/data", "/job/src", "/job/work", "/job/output"]
 
-# You should install any dependencies you need here.
-# RUN pip install tqdm
+# Install required dependencies for C4 dataset
+RUN pip install datasets huggingface-hub
