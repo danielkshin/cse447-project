@@ -57,7 +57,8 @@ class MyModel:
     def load_test_data(cls, fname):
         # your code here
         data = []
-        with open(fname) as f:
+        # need utf-8 to work on sophie's computer
+        with open(fname, 'rt', encoding='utf-8') as f:
             for line in f:
                 inp = line[:-1]  # the last character is a newline
                 data.append(inp)
@@ -65,7 +66,8 @@ class MyModel:
 
     @classmethod
     def write_pred(cls, preds, fname):
-        with open(fname, 'wt') as f:
+        # need utf-8 to work on sophie's computer
+        with open(fname, 'wt', encoding='utf-8') as f:
             for p in preds:
                 f.write('{}\n'.format(p))
 
@@ -91,14 +93,19 @@ class MyModel:
             if context in self.model and self.model[context]:
                 char_counts = self.model[context]
                 top_3 = char_counts.most_common(3)
-                pred = ''.join([char for char, count in top_3])
+                pred = ''.join([char for char, _ in top_3])
 
                 # If less than 3 predictions, add most frequent chars
+                # Disregard spaces and punctuation for fallback
                 if len(pred) < 3:
-                    top_freq = self.char_freq.most_common(5)
+                    top_freq = self.char_freq.most_common(50)
                     for char, _ in top_freq:
-                        if char not in pred and len(pred) < 3:
+                        if char.isspace() or char in string.punctuation:
+                            continue
+                        if char not in pred:
                             pred += char
+                        if len(pred) == 3:
+                            break
 
                 return pred
 
