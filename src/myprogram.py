@@ -86,26 +86,27 @@ class MyModel:
         print(f"Trained n-gram models")
 
     def predict_next_chars(self, inp):
+        exclude_chars = ['\n', '\t']
         try:
             for ctx_len in range(min(self.n, len(inp)), 0, -1):
                 context = inp[-ctx_len:]
                 
                 if context in self.model and self.model[context]:
                     char_counts = self.model[context]
-                    top_3 = [char for char, count in char_counts.most_common() if char != '\n'][:3]
+                    top_3 = [char for char, count in char_counts.most_common() if char not in exclude_chars][:3]
                     pred = ''.join(top_3)
 
                     # If less than 3 predictions, add most frequent chars
                     if len(pred) < 3:
                         additional_chars = [char for char, _ in self.char_freq.most_common() 
-                                        if char not in pred and char != '\n']
+                                        if char not in pred and char not in exclude_chars]
                         pred += ''.join(additional_chars[:3 - len(pred)])
 
                     return pred
         except Exception:
             pass
 
-        top_freq = [char for char, _ in self.char_freq.most_common() if char != '\n'][:3]
+        top_freq = [char for char, _ in self.char_freq.most_common() if char not in exclude_chars][:3]
         return ''.join(top_freq)
 
     def run_pred(self, data):
