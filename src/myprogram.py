@@ -153,6 +153,48 @@ class MyModel:
         
         return preds
     
+    def _detect_script(self, text):
+        """Detect the script/language of the input text."""
+        if not text:
+            return 'latin'
+        
+        # Count character types
+        hangul = sum(1 for c in text if '\uac00' <= c <= '\ud7af')
+        vietnamese = sum(1 for c in text if c in 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ')
+        latin = sum(1 for c in text if c.isascii() and c.isalpha())
+        
+        total = hangul + vietnamese + latin
+        if total == 0:
+            return 'latin'
+        
+        # Determine dominant script
+        if hangul > total * 0.3:
+            return 'hangul'
+        elif vietnamese > total * 0.2:
+            return 'vietnamese'
+        else:
+            return 'latin'
+    
+    def _filter_predictions(self, predictions, script, top_k=3):
+        """Filter predictions based on detected script."""
+        if script == 'hangul':
+            # Prioritize Hangul characters
+            filtered = [c for c in predictions if '\uac00' <= c <= '\ud7af' or c == ' ']
+        elif script == 'vietnamese':
+            # Prioritize Vietnamese and Latin characters
+            vietnamese_chars = set('àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ')
+            filtered = [c for c in predictions if c in vietnamese_chars]
+        else:  # latin/english
+            # Prioritize ASCII letters, numbers, and common punctuation
+            filtered = [c for c in predictions if (c.isascii() and (c.isalnum() or c in ' .,!?\'-'))]
+        
+        # If we filtered everything out, return original predictions
+        if not filtered:
+            # Fallback: at least return printable ASCII
+            filtered = [c for c in predictions if c.isprintable()]
+        
+        return filtered[:top_k] if filtered else predictions[:top_k]
+    
     def _predict_next_char(self, context, top_k=3):
         """
         Predict next character using n-gram model with backoff.
@@ -164,6 +206,9 @@ class MyModel:
         Returns:
             List of top k predicted characters
         """
+        # Detect the script of the input
+        script = self._detect_script(context)
+        
         # Try n-grams from highest order to lowest (backoff strategy)
         for order in range(self.n - 1, -1, -1):
             # Get the relevant context for this order
@@ -172,38 +217,35 @@ class MyModel:
             if ctx in self.ngram_counts[order]:
                 char_counts = self.ngram_counts[order][ctx]
                 
-                # Get top k most common characters
-                most_common = char_counts.most_common(top_k)
+                # Get more candidates than needed for filtering
+                candidates = char_counts.most_common(top_k * 3)
                 
-                if most_common:
-                    predictions = [char for char, count in most_common]
+                if candidates:
+                    all_predictions = [char for char, count in candidates]
+                    # Filter based on detected script
+                    predictions = self._filter_predictions(all_predictions, script, top_k)
                     
-                    # If we don't have enough predictions, fill with random from vocab
-                    while len(predictions) < top_k:
-                        # Try lower order n-grams first
-                        if order > 0:
-                            break  # Let backoff handle it
-                        # If we're at unigrams and still need more, use random
-                        random_char = random.choice(list(self.char_set)) if self.char_set else ' '
-                        if random_char not in predictions:
-                            predictions.append(random_char)
-                    
+                    # If we don't have enough predictions after filtering, try lower order
                     if len(predictions) >= top_k:
                         return predictions[:top_k]
+                    elif order > 0:
+                        continue  # Try lower order n-gram
         
-        # If all else fails, return most common characters from unigrams
+        # If all else fails, return most common characters filtered by script
         if self.ngram_counts[0][""]:
-            most_common = self.ngram_counts[0][""].most_common(top_k)
-            predictions = [char for char, count in most_common]
+            candidates = self.ngram_counts[0][""].most_common(50)
+            all_predictions = [char for char, count in candidates]
+            predictions = self._filter_predictions(all_predictions, script, top_k)
             if len(predictions) >= top_k:
                 return predictions[:top_k]
         
-        # Last resort: return random characters from vocabulary
-        if self.char_set:
-            return random.sample(list(self.char_set), min(top_k, len(self.char_set)))
-        
-        # Absolute fallback
-        return [' ', 'e', 't'][:top_k]
+        # Last resort based on script
+        if script == 'hangul':
+            return ['요', '다', '은'][:top_k]
+        elif script == 'vietnamese':
+            return ['n', 'i', 'a'][:top_k]
+        else:  # latin/english
+            return ['e', 't', 's'][:top_k]
 
     def save(self, work_dir):
         """Save model to disk."""
