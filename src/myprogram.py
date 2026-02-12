@@ -24,17 +24,17 @@ class MyModel:
         dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
 
         languages = {
-            'en': 2000,
-            'es': 2000,
-            'zh': 2000,
-            'hi': 2000,
-            'pt': 2000,
-            'bn': 2000,
-            'ru': 2000,
-            'ja': 2000,
-            'ar': 2000,
-            'ko': 2000,
-            'vi': 2000,
+            'en': 500,
+            'es': 500,
+            'zh': 500,
+            'hi': 500,
+            'pt': 500,
+            'bn': 500,
+            'ru': 500,
+            'ja': 500,
+            'ar': 500,
+            'ko': 500,
+            'vi': 500,
         }
         
         training_data = []
