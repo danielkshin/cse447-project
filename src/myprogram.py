@@ -102,11 +102,11 @@ class MyModel:
                         pred += ''.join(additional_chars[:3 - len(pred)])
 
                     return pred
+        except Exception:
+            pass
 
-            top_freq = self.char_freq.most_common(3)
-            return ''.join([char for char, _ in top_freq])
-        except Exception as e:
-            return ''.join([c for c, _ in self.char_freq.most_common(3)])
+        top_freq = [char for char, _ in self.char_freq.most_common() if char != '\n'][:3]
+        return ''.join(top_freq)
 
     def run_pred(self, data):
         preds = []
