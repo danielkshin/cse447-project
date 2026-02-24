@@ -20,20 +20,21 @@ class MyModel:
     @classmethod
     def load_training_data(cls):
         print("Loading C4 dataset")
-        
+
         dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
-        max_samples = 1000
 
         languages = {
-            'en': 2000,
-            # 'es': 2000,
-            # 'zh': 2000,
-            # 'ru': 2000,
-            # 'ar': 2000,
-            # 'ja': 2000,
-            # 'hi': 2000,
-            'ko': 2000,
-            # 'vi': 2000,
+            'en': 1500,
+            'es': 1500,
+            'zh': 1500,
+            'hi': 1500,
+            'pt': 1500,
+            'bn': 1500,
+            'ru': 1500,
+            'ja': 1500,
+            'ar': 1500,
+            'ko': 1500,
+            'vi': 1500,
         }
         
         training_data = []
@@ -87,36 +88,40 @@ class MyModel:
         print(f"Trained n-gram models")
 
     def predict_next_chars(self, inp):
-        for ctx_len in range(min(self.n, len(inp)), 0, -1):
-            context = inp[-ctx_len:]
-            
-            if context in self.model and self.model[context]:
-                char_counts = self.model[context]
-                top_3 = char_counts.most_common(3)
-                pred = ''.join([char for char, _ in top_3])
+        exclude_chars = ['\n', '\t']
+        try:
+            for ctx_len in range(min(self.n, len(inp)), 0, -1):
+                context = inp[-ctx_len:]
+                
+                if context in self.model and self.model[context]:
+                    char_counts = self.model[context]
+                    top_3 = [char for char, count in char_counts.most_common() if char not in exclude_chars][:3]
+                    pred = ''.join(top_3)
 
-                # If less than 3 predictions, add most frequent chars
-                # Disregard spaces and punctuation for fallback
-                if len(pred) < 3:
-                    top_freq = self.char_freq.most_common(50)
-                    for char, _ in top_freq:
-                        if char.isspace() or char in string.punctuation:
-                            continue
-                        if char not in pred:
-                            pred += char
-                        if len(pred) == 3:
-                            break
+                    # If less than 3 predictions, add most frequent chars
+                    if len(pred) < 3:
+                        additional_chars = [char for char, _ in self.char_freq.most_common() 
+                                        if char not in pred and char not in exclude_chars]
+                        pred += ''.join(additional_chars[:3 - len(pred)])
 
-                return pred
+                    return pred
+        except Exception:
+            pass
 
-        top_freq = self.char_freq.most_common(3)
-        return ''.join([char for char, _ in top_freq])
+        top_freq = [char for char, _ in self.char_freq.most_common() if char not in exclude_chars][:3]
+        return ''.join(top_freq)
 
     def run_pred(self, data):
         preds = []
-        for inp in data:
-            pred = self.predict_next_chars(inp)
-            preds.append(pred)
+        batch_size = 50
+        for i in range(0, len(data), batch_size):
+            batch = data[i:i+batch_size]
+            for inp in batch:
+                try:
+                    pred = self.predict_next_chars(inp)
+                    preds.append(pred)
+                except Exception as e:
+                    preds.append('   ')
         return preds
 
     def save(self, work_dir):
