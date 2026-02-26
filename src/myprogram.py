@@ -141,7 +141,9 @@ class MyModel:
         checkpoint = {
             'n': self.n,
             'model': dict(self.model),
-            'char_freq': dict(self.char_freq)
+            'char_freq': dict(self.char_freq),
+            'top3': self.top3,
+            'fallback3': self.fallback3
         }
         with open(os.path.join(work_dir, 'model.checkpoint'), 'wb') as f:
             pickle.dump(checkpoint, f)
@@ -155,7 +157,11 @@ class MyModel:
         model.n = checkpoint['n']
         model.model = defaultdict(Counter, {ctx: Counter(chars) for ctx, chars in checkpoint['model'].items()})
         model.char_freq = Counter(checkpoint.get('char_freq', {}))
-        model.build_fast_tables()
+        model.top3 = checkpoint.get('top3', {})
+        model.fallback3 = checkpoint.get('fallback3', '')
+        # fallback in case loading an old checkpoint without top3
+        if not model.top3:
+            model.build_fast_tables()
         return model
 
 
