@@ -93,15 +93,20 @@ class MyModel:
     def build_fast_tables(self):
         exclude = {'\n', '\t'}
 
-        self.fallback3 = ''.join(
-            [ch for ch, _ in self.char_freq.most_common() if ch not in exclude][:3]
-        ).ljust(3)
+        fallback_chars = [ch for ch, _ in self.char_freq.most_common() if ch not in exclude]
+        self.fallback3 = ''.join(fallback_chars[:3])
 
         top3 = {}
         for ctx, ctr in self.model.items():
-            top3[ctx] = ''.join(
-                [ch for ch, _ in ctr.most_common() if ch not in exclude][:3]
-            ).ljust(3)
+            pred = [ch for ch, _ in ctr.most_common() if ch not in exclude][:3]
+            pred_str = ''.join(pred)
+            if len(pred_str) < 3:
+                for ch in fallback_chars:
+                    if ch not in pred_str:
+                        pred_str += ch
+                    if len(pred_str) == 3:
+                        break
+            top3[ctx] = pred_str
 
         self.top3 = top3
 
