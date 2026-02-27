@@ -16,6 +16,8 @@ class MyModel:
         self.n = 5
         self.model = defaultdict(Counter)
         self.char_freq = Counter()
+        self.top3 = {}
+        self.fallback3 = "   "
 
     @classmethod
     def load_training_data(cls):
@@ -25,16 +27,16 @@ class MyModel:
 
         languages = {
             'en': 1500,
-            'es': 1500,
-            'zh': 1500,
-            'hi': 1500,
-            'pt': 1500,
-            'bn': 1500,
-            'ru': 1500,
-            'ja': 1500,
-            'ar': 1500,
+            #'es': 1500,
+            #'zh': 1500,
+            #'hi': 1500,
+            #'pt': 1500,
+            #'bn': 1500,
+            #'ru': 1500,
+            #'ja': 1500,
+            #'ar': 1500,
             'ko': 1500,
-            'vi': 1500,
+            #'vi': 1500,
         }
         
         training_data = []
@@ -58,7 +60,8 @@ class MyModel:
     def load_test_data(cls, fname):
         # your code here
         data = []
-        with open(fname) as f:
+        # need utf-8 to work on sophie's computer
+        with open(fname, 'rt', encoding='utf-8') as f:
             for line in f:
                 inp = line[:-1]  # the last character is a newline
                 data.append(inp)
@@ -66,7 +69,8 @@ class MyModel:
 
     @classmethod
     def write_pred(cls, preds, fname):
-        with open(fname, 'wt') as f:
+        # need utf-8 to work on sophie's computer
+        with open(fname, 'wt', encoding='utf-8') as f:
             for p in preds:
                 f.write('{}\n'.format(p))
 
@@ -82,32 +86,43 @@ class MyModel:
                     context = combined_text[i:i+ctx_len]
                     char = combined_text[i+ctx_len]
                     self.model[context][char] += 1
-        
+
+        self.build_fast_tables()
         print(f"Trained n-gram models")
 
+    def build_fast_tables(self):
+        exclude = {'\n', '\t'}
+
+        fallback_chars = [ch for ch, _ in self.char_freq.most_common() if ch not in exclude]
+        self.fallback3 = ''.join(fallback_chars[:3])
+
+        top3 = {}
+        for ctx, ctr in self.model.items():
+            pred = [ch for ch, _ in ctr.most_common() if ch not in exclude][:3]
+            pred_str = ''.join(pred)
+            if len(pred_str) < 3:
+                for ch in fallback_chars:
+                    if ch not in pred_str:
+                        pred_str += ch
+                    if len(pred_str) == 3:
+                        break
+            top3[ctx] = pred_str
+
+        self.top3 = top3
+
     def predict_next_chars(self, inp):
-        exclude_chars = ['\n', '\t']
-        try:
-            for ctx_len in range(min(self.n, len(inp)), 0, -1):
-                context = inp[-ctx_len:]
-                
-                if context in self.model and self.model[context]:
-                    char_counts = self.model[context]
-                    top_3 = [char for char, count in char_counts.most_common() if char not in exclude_chars][:3]
-                    pred = ''.join(top_3)
+        top3 = self.top3
+        n = self.n
+        L = len(inp)
+        max_len = n if L >= n else L
 
-                    # If less than 3 predictions, add most frequent chars
-                    if len(pred) < 3:
-                        additional_chars = [char for char, _ in self.char_freq.most_common() 
-                                        if char not in pred and char not in exclude_chars]
-                        pred += ''.join(additional_chars[:3 - len(pred)])
+        for ctx_len in range(max_len, 0, -1):
+            ctx = inp[L - ctx_len : L]
+            pred = top3.get(ctx)
+            if pred is not None:
+                return pred
 
-                    return pred
-        except Exception:
-            pass
-
-        top_freq = [char for char, _ in self.char_freq.most_common() if char not in exclude_chars][:3]
-        return ''.join(top_freq)
+        return self.fallback3
 
     def run_pred(self, data):
         preds = []
@@ -126,7 +141,9 @@ class MyModel:
         checkpoint = {
             'n': self.n,
             'model': dict(self.model),
-            'char_freq': dict(self.char_freq)
+            'char_freq': dict(self.char_freq),
+            'top3': self.top3,
+            'fallback3': self.fallback3
         }
         with open(os.path.join(work_dir, 'model.checkpoint'), 'wb') as f:
             pickle.dump(checkpoint, f)
@@ -140,6 +157,11 @@ class MyModel:
         model.n = checkpoint['n']
         model.model = defaultdict(Counter, {ctx: Counter(chars) for ctx, chars in checkpoint['model'].items()})
         model.char_freq = Counter(checkpoint.get('char_freq', {}))
+        model.top3 = checkpoint.get('top3', {})
+        model.fallback3 = checkpoint.get('fallback3', '')
+        # fallback in case loading an old checkpoint without top3
+        if not model.top3:
+            model.build_fast_tables()
         return model
 
 
