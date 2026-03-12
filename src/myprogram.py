@@ -15,7 +15,6 @@ class MyModel:
     def __init__(self):
         self.n = 5
         self.model = defaultdict(Counter)
-        self.char_freq = Counter()
         self.top3 = {}
         self.fallback3 = "   "
 
@@ -86,7 +85,7 @@ class MyModel:
         combined_text = ' '.join(data)
         n = self.n
 
-        self.char_freq = Counter(combined_text)
+        char_freq = Counter(combined_text)
 
         for i in range(len(combined_text) - n):
             for ctx_len in range(1, n + 1):
@@ -95,13 +94,13 @@ class MyModel:
                     char = combined_text[i+ctx_len]
                     self.model[context][char] += 1
 
-        self.build_fast_tables()
+        self.build_fast_tables(char_freq)
         print(f"Trained n-gram models")
 
-    def build_fast_tables(self):
+    def build_fast_tables(self, char_freq):
         exclude = {'\n', '\t'}
 
-        fallback_chars = [ch for ch, _ in self.char_freq.most_common() if ch not in exclude]
+        fallback_chars = [ch for ch, _ in char_freq.most_common() if ch not in exclude]
         self.fallback3 = ''.join(fallback_chars[:3])
 
         top3 = {}
@@ -148,8 +147,6 @@ class MyModel:
     def save(self, work_dir):
         checkpoint = {
             'n': self.n,
-            'model': dict(self.model),
-            'char_freq': dict(self.char_freq),
             'top3': self.top3,
             'fallback3': self.fallback3
         }
@@ -163,13 +160,8 @@ class MyModel:
         
         model = MyModel()
         model.n = checkpoint['n']
-        model.model = defaultdict(Counter, {ctx: Counter(chars) for ctx, chars in checkpoint['model'].items()})
-        model.char_freq = Counter(checkpoint.get('char_freq', {}))
         model.top3 = checkpoint.get('top3', {})
         model.fallback3 = checkpoint.get('fallback3', '')
-        # fallback in case loading an old checkpoint without top3
-        if not model.top3:
-            model.build_fast_tables()
         return model
 
 
