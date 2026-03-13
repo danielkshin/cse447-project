@@ -8,10 +8,6 @@ from datasets import load_dataset
 from collections import defaultdict, Counter
 
 class MyModel:
-    """
-    This is a starter model to get you started. Feel free to modify this file.
-    """
-
     def __init__(self):
         self.n = 5
         self.model = defaultdict(Counter)
@@ -22,27 +18,25 @@ class MyModel:
     def load_training_data(cls):
         print("Loading C4 dataset")
 
-        dataset = load_dataset('allenai/c4', 'en', split='train', streaming=True)
-
         languages = {
-            'en': 850,
+            'en': 1500,
             'es': 850,
-            'zh': 850,
+            'zh': 2000,
             'hi': 850,
             'pt': 850,
             'bn': 850,
             'ru': 850,
-            'ja': 850,
-            'ar': 850,
-            'ko': 850,
+            'ja': 2000,
+            'ar': 1500,
+            'ko': 2000,
             'vi': 850,
             'fr': 850,
             'de': 850,
-            'it': 850,
+            'it': 1000,
             'tr': 850,
             'pl': 850,
             'nl': 850,
-            'sv': 850,
+            'sv': 1000,
             'id': 850,
         }
         
